@@ -119,12 +119,10 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             return false;
         }
 
-        // Длина без учёта кодов
         String stripped = ColorUtil.stripAll(prefix);
         int min = plugin.getConfig().getInt("min-length", 2);
         int max = plugin.getConfig().getInt("max-length", 24);
 
-        // Если есть цвета — текст может быть короче
         boolean hasOnlyColors = stripped.isEmpty();
         if (hasOnlyColors && !plugin.getConfig().getBoolean("restrictions.allow-empty-text", false)) {
             msg(player, "empty-text");
@@ -144,7 +142,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Blacklist
         String lower = stripped.toLowerCase();
         for (String word : plugin.getConfig().getStringList("blacklist")) {
             if (lower.contains(word.toLowerCase())) {
@@ -154,7 +151,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Запрещённые символы
         for (String ch : plugin.getConfig().getStringList("forbidden-chars")) {
             if (prefix.contains(ch)) {
                 msg(player, "contains-forbidden-char");
@@ -162,7 +158,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Права на цвета
         if (ColorUtil.hasGradient(prefix) && !player.hasPermission("governixprefix.gradient")) {
             msg(player, "no-gradient-perm");
             return false;
@@ -184,7 +179,11 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Устанавливает (или сбрасывает, если prefix == null) префикс через LuckPerms.
+     * Устанавливает (или сбрасывает) префикс через LuckPerms.
+     * Автоматически:
+     *   - удаляет ВСЕ личные префиксы (meta prefix) игрока
+     *   - добавляет пробел в конце
+     *   - ставит приоритет из конфига (по умолчанию 200 — выше групповых)
      */
     private boolean setPrefix(OfflinePlayer target, String prefix, CommandSender executor) {
         try {
@@ -195,21 +194,24 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
                 return false;
             }
 
-            // Убираем старые префиксы
+            // 1. Убираем ВСЕ личные prefix-ноды игрока
             user.data().clear(NodeType.PREFIX::matches);
 
-            // Добавляем новый (если не reset)
+            // 2. Если не reset — добавляем новый
             if (prefix != null && !prefix.isEmpty()) {
-                int priority = plugin.getConfig().getInt("prefix-priority", 100);
-                Node node = Node.builder("prefix." + priority + "." + prefix).build();
+                // Авто-пробел в конце (если его нет)
+                String finalPrefix = prefix.endsWith(" ") ? prefix : prefix + " ";
+
+                int priority = plugin.getConfig().getInt("prefix-priority", 200);
+                Node node = Node.builder("prefix." + priority + "." + finalPrefix).build();
                 user.data().add(node);
             }
 
-            // Сохраняем
+            // 3. Сохраняем
             lp.getUserManager().saveUser(user);
 
-            // Сообщения
-            String displayPrefix = prefix == null ? "" : prefix;
+            // 4. Сообщения
+            String displayPrefix = prefix == null ? "" : prefix.trim();
             if (executor.equals(target)) {
                 if (prefix == null) {
                     msg(executor, "reset-success");
@@ -218,7 +220,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
                             + plugin.msg("set-success").replace("{prefix}", displayPrefix)));
                 }
             } else {
-                // Админ ставит другому
                 if (prefix == null) {
                     executor.sendMessage(ColorUtil.color(plugin.msg("prefix")
                             + plugin.msg("admin-reset").replace("{player}", target.getName())));
@@ -228,10 +229,10 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
                             .replace("{player}", target.getName())
                             .replace("{prefix}", displayPrefix)));
                 }
-                // Уведомить игрока
                 if (target.isOnline() && target.getPlayer() != null) {
                     if (prefix == null) {
-                        target.getPlayer().sendMessage(ColorUtil.color(plugin.msg("prefix") + "&7Твой префикс сброшен администратором."));
+                        target.getPlayer().sendMessage(ColorUtil.color(plugin.msg("prefix")
+                                + "&7Твой префикс сброшен администратором."));
                     } else {
                         target.getPlayer().sendMessage(ColorUtil.color(plugin.msg("prefix")
                                 + plugin.msg("admin-target-notify").replace("{prefix}", displayPrefix)));
@@ -252,7 +253,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
         if (online != null) return online;
         OfflinePlayer cached = Bukkit.getOfflinePlayerIfCached(name);
         if (cached != null) return cached;
-        // Пробуем найти оффлайн-игрока
         @SuppressWarnings("deprecation")
         OfflinePlayer off = Bukkit.getOfflinePlayer(name);
         if (off.hasPlayedBefore()) return off;
