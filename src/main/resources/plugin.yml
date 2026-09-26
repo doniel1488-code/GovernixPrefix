@@ -1,0 +1,36 @@
+name: GovernixPrefix
+version: '${project.version}'
+main: ru.governix.prefix.GovernixPrefix
+api-version: '1.21'
+author: Governix
+description: Custom prefix for players with permission
+depend: [LuckPerms]
+
+commands:
+  cprefix:
+    description: Управление своим префиксом
+    usage: /cprefix <текст|reset>
+    aliases: [tag, pref, myprefix, cpref]
+
+permissions:
+  governixprefix.use:
+    description: Смена собственного префикса
+    default: false
+  governixprefix.color:
+    description: Использование &-цветов в префиксе
+    default: false
+  governixprefix.hex:
+    description: Использование HEX-цветов в префиксе
+    default: false
+  governixprefix.gradient:
+    description: Использование градиента в префиксе
+    default: false
+  governixprefix.bold:
+    description: Жирный шрифт (&l)
+    default: false
+  governixprefix.admin:
+    description: Смена префикса другим игрокам
+    default: op
+  governixprefix.cooldown.bypass:
+    description: Обход кулдауна
+    default: op
