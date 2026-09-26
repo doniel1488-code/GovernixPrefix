@@ -35,7 +35,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // /cprefix reset — сброс своего
         if (args[0].equalsIgnoreCase("reset")) {
             if (args.length == 1) {
                 if (!(sender instanceof Player player)) {
@@ -49,7 +48,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
                 setPrefix(player, null, sender);
                 return true;
             }
-            // /cprefix reset <ник> — админ
             if (!sender.hasPermission("governixprefix.admin")) {
                 msg(sender, "no-permission");
                 return true;
@@ -63,7 +61,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // /cprefix <ник> <префикс> — админ
         if (args.length >= 2 && sender.hasPermission("governixprefix.admin")) {
             OfflinePlayer target = getOffline(args[0]);
             if (target != null) {
@@ -73,7 +70,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // /cprefix <префикс> — обычный игрок
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ColorUtil.color("&cТолько для игроков."));
             return true;
@@ -84,7 +80,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // Кулдаун
         if (!player.hasPermission("governixprefix.cooldown.bypass")) {
             long now = System.currentTimeMillis();
             Long cd = cooldowns.get(player.getUniqueId());
@@ -99,10 +94,8 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
 
         String prefix = String.join(" ", args).trim();
 
-        // Валидация
         if (!validate(player, prefix)) return true;
 
-        // Установка
         if (setPrefix(player, prefix, sender)) {
             cooldowns.put(player.getUniqueId(), System.currentTimeMillis()
                     + plugin.getConfig().getInt("cooldown-seconds", 120) * 1000L);
@@ -110,9 +103,6 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    /**
-     * Валидация префикса. Возвращает true если всё ок.
-     */
     private boolean validate(Player player, String prefix) {
         if (prefix.isEmpty()) {
             msg(player, "empty-text");
@@ -180,10 +170,9 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
 
     /**
      * Устанавливает (или сбрасывает) префикс через LuckPerms.
-     * Автоматически:
-     *   - удаляет ВСЕ личные префиксы (meta prefix) игрока
-     *   - добавляет пробел в конце
-     *   - ставит приоритет из конфига (по умолчанию 200 — выше групповых)
+     *
+     * ВАЖНО: префикс оборачивается в &r (reset) с двух сторон,
+     * чтобы формат (градиент, жирный, курсив) НЕ перетекал на ник.
      */
     private boolean setPrefix(OfflinePlayer target, String prefix, CommandSender executor) {
         try {
@@ -194,23 +183,19 @@ public class PrefixCommand implements CommandExecutor, TabCompleter {
                 return false;
             }
 
-            // 1. Убираем ВСЕ личные prefix-ноды игрока
             user.data().clear(NodeType.PREFIX::matches);
 
-            // 2. Если не reset — добавляем новый
             if (prefix != null && !prefix.isEmpty()) {
-                // Авто-пробел в конце (если его нет)
-                String finalPrefix = prefix.endsWith(" ") ? prefix : prefix + " ";
+                String trimmed = prefix.trim();
+                String finalPrefix = "&r" + trimmed + "&r ";
 
                 int priority = plugin.getConfig().getInt("prefix-priority", 200);
                 Node node = Node.builder("prefix." + priority + "." + finalPrefix).build();
                 user.data().add(node);
             }
 
-            // 3. Сохраняем
             lp.getUserManager().saveUser(user);
 
-            // 4. Сообщения
             String displayPrefix = prefix == null ? "" : prefix.trim();
             if (executor.equals(target)) {
                 if (prefix == null) {
